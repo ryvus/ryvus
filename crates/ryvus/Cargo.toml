@@ -1,0 +1,9 @@
+[package]
+name = "ryvus"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ryvus-core = { workspace = true }
+ryvus-engine = { workspace = true }
+ryvus-flow = { workspace = true }
