@@ -1,0 +1,122 @@
+##############################
+# Rust & Cargo
+##############################
+/target/
+/crates/*/target/
+/examples/*/target/
+
+# Cargo metadata caches
+**/.cargo-ok
+
+# Debug logs
+debug.log
+
+##############################
+# WASM build artifacts
+##############################
+# Wasm builds (plugin-wasm-sdk output, plugin artifacts, etc.)
+*.wasm
+*.wat
+*.wast
+
+# Wasmtime cache
+.wasmtime
+
+##############################
+# Plugin compilation outputs
+##############################
+# marketplace plugin output
+plugins/**/*.wasm
+plugins/**/*.so
+plugins/**/*.dll
+plugins/**/*.dylib
+
+##############################
+# IDE / Editors
+##############################
+# VSCode
+.vscode/
+.vscode-test/
+
+# JetBrains / IntelliJ / CLion
+.idea/
+*.iml
+
+# VSCode Rust Analyzer
+*.rust_analyzer
+
+# Sublime
+*.sublime-workspace
+*.sublime-project
+
+# Backup files
+*~
+
+##############################
+# OS-specific
+##############################
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+##############################
+# Environment / Secrets
+##############################
+.env
+.env.*
+.env.local
+.envrc
+
+##############################
+# Logs
+##############################
+logs/
+*.log
+
+##############################
+# Node / Web UI (future)
+##############################
+# Node installs
+node_modules/
+
+# Vite / Next.js / SvelteKit / etc.
+dist/
+build/
+public/build/
+.next/
+.svelte-kit/
+.nuxt/
+
+##############################
+# Python / tooling
+##############################
+__pycache__/
+*.pyc
+
+##############################
+# Misc
+##############################
+# Temporary directories
+tmp/
+temp/
+
+# Editor generated files
+*.swp
+*.swo
+
+##############################
+# Coverage
+##############################
+coverage/
+coverage_html/
+
+##############################
+# Git Submodule Safety
+##############################
+# Ignore any accidental nested git repos
+**/.git/
+
