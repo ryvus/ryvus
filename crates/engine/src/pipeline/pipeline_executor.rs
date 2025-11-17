@@ -19,6 +19,7 @@ use ryvus_core::{
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
+use tracing::debug;
 
 /// Executes a Pipeline of Actions with flow control.
 /// Supports next_when, else, on_error, and cancel handling.
@@ -60,12 +61,16 @@ where
 
     /// Executes the pipeline based on dynamic routing.
     pub async fn execute(&self, input: Value) -> Result<ExecutionContext> {
+        let _ = tracing_subscriber::fmt::try_init();
+
+        debug!("Executing...");
         let mut exec_ctx = ExecutionContext::new(
             &self.pipeline.key,
             Environment::new("local", ryvus_core::environment::EnvironmentKind::Local),
         );
         exec_ctx.data.insert("payload".to_string(), input);
 
+        debug!("Triggering start hooks");
         for hook in &self.global_pipeline_hooks {
             hook.start(&mut exec_ctx).await;
         }
@@ -78,10 +83,15 @@ where
             .ok_or_else(|| EngineError::Other("Pipeline has no steps".into()))?
             .key
             .clone();
+        debug!("Current step key: {}", current_key);
 
         loop {
             // Check cancel token
+            debug!("Check for cancellation:  {}", current_key);
+
             if self.cancel_token.is_cancelled() {
+                debug!("Cancaling:  {}", current_key);
+
                 for hook in &self.global_pipeline_hooks {
                     hook.canceled(&mut exec_ctx).await;
                 }
@@ -96,8 +106,11 @@ where
                 .find(|s| s.key == current_key)
                 .ok_or_else(|| EngineError::Other(format!("Step '{}' not found", current_key)))?;
 
+            debug!("Resolved step:  {}", step.key);
+
             // Execute current step
             let result = self.execute_action_step(step, &mut exec_ctx).await;
+            debug!("Step: {} result {:?}", step.key, result);
 
             match result {
                 Ok(action_result) => {
@@ -151,6 +164,8 @@ where
         step: &PipelineStep,
         ctx: &mut ExecutionContext,
     ) -> Result<ActionResult> {
+        debug!("Executing step");
+
         match self.action_resolver.resolve(&step.action).await {
             Some(mut action) => {
                 ctx.current_step = Some(step.clone());

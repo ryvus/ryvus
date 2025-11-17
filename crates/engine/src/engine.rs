@@ -18,6 +18,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
+use tracing::debug;
 
 /// ------------------------------------------------------
 /// Engine definition with ActionResolver support
@@ -160,6 +161,7 @@ where
 
     /// Executes a pipeline with mapper, cancellation, hooks, and resolver support.
     pub async fn execute(&self, pipeline: Pipeline, input: Value) -> Result<ExecutionResult> {
+        debug!("Exectuting pipeline {}", pipeline.key);
         // --- Setup cancellation token ---
         let cancel_token = self
             .cancel_listener
@@ -167,11 +169,16 @@ where
             .map(|c| c.token())
             .unwrap_or_else(CancellationToken::new);
 
+        debug!("Cancel token {:?}", cancel_token);
+
         // --- Resolve hooks ---
         let pipeline_hooks = self.pipeline_hook_resolver.resolve(&pipeline.key);
-        let all_pipeline_hooks = [self.global_pipeline_hooks.clone(), pipeline_hooks].concat();
+        debug!("Pipeline hoogs: # {:?}", pipeline_hooks.len());
 
-        // --- Create and run executor ---
+        let all_pipeline_hooks = [self.global_pipeline_hooks.clone(), pipeline_hooks].concat();
+        debug!("Total hooks: # {:?}", all_pipeline_hooks.len());
+
+        debug!("Create PipelineExecutor");
         let executor = PipelineExecutor::new(
             pipeline.clone(),
             self.mapper.clone(),
@@ -181,11 +188,12 @@ where
             &*self.action_resolver,
             cancel_token,
         );
-
+        debug!("Executing pipeline");
         let mut ex_context = executor.execute(input).await?;
+        debug!("Marking context as finsihed");
         ex_context.finish(); // Mark as finished if not already done
 
-        // --- Build metrics ---
+        debug!("Building metrics");
         let finished_at = ex_context.finished_at.unwrap_or_else(Utc::now);
         let duration_ms = (finished_at - ex_context.started_at)
             .num_milliseconds()
@@ -197,11 +205,14 @@ where
             .iter()
             .filter(|s| s.status == ExecutionStatus::Success)
             .count();
+
         let steps_failed = ex_context
             .steps
             .iter()
             .filter(|s| s.status == ExecutionStatus::Failed)
             .count();
+
+        debug!("Composing metrics");
 
         let metrics = ExecutionMetrics {
             started_at: ex_context.started_at,
@@ -212,7 +223,7 @@ where
             steps_failed,
         };
 
-        // --- Assemble final result ---
+        debug!("Assemble final result");
         let result = ExecutionResult {
             run_id: ex_context.run_id.clone(),
             pipeline_key: Some(pipeline.key.clone()),
@@ -230,6 +241,8 @@ where
             steps: ex_context.steps,
             metrics,
         };
+
+        debug!("Pipeline execution finsihed");
 
         Ok(result)
     }
@@ -366,6 +379,8 @@ where
     AR: ActionResolver + Send + Sync + 'static,
 {
     async fn execute_pipeline(&self, pipeline: Pipeline, input: Value) -> Result<ExecutionResult> {
+        let _ = tracing_subscriber::fmt::try_init();
+
         // The engine itself already tracks start, finish, and metrics internally.
         // Just call it and propagate the result.
 

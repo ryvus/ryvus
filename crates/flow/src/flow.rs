@@ -3,6 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use ryvus_core::{action::result::ExecutionResult, prelude::pipeline::Pipeline};
 use ryvus_engine::engine::EngineApi;
+use tracing::{debug, info};
 
 use crate::{
     pipeline::loader::PipelineLoader,
@@ -40,8 +41,12 @@ impl FlowExecutor for EngineAdapter {
         pipeline: String,
         input: serde_json::Value,
     ) -> Result<ExecutionResult, FlowError> {
+        tracing_subscriber::fmt::try_init();
         // Try to load as file first
+        info!("Try loading pipeline from file");
+
         let pipeline_def_result = PipelineLoader::from_file(&pipeline);
+        debug!("Loaded pipeline_def");
 
         // If file not found, treat as inline JSON
         let mut pipeline_def = match pipeline_def_result {
@@ -55,14 +60,20 @@ impl FlowExecutor for EngineAdapter {
             }
         };
 
+        debug!("Converted pipeline");
+
         let resolver = ChainedResolver::new(vec![Box::new(EnvResolver)]);
+        debug!("Resolver init");
 
         // Resolve all vars
         resolve_config(&mut pipeline_def, &resolver);
+        debug!("Resolved config");
 
         // Build pipeline
         let pipeline =
             Pipeline::try_from(pipeline_def).map_err(|e| FlowError::Loader(e.to_string()))?;
+        debug!("Convert pipeline_def to pipeline");
+        debug!("Starting engine, brrr");
 
         // Execute pipeline
         self.engine
