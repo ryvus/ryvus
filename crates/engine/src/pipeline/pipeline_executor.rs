@@ -182,17 +182,17 @@ where
                     .await
                     .map_err(|e| EngineError::Other(e.to_string()))?;
 
-                let mut mapped_runtime = ctx
+                let mapped_runtime = ctx
                     .data
                     .get("payload")
                     .cloned()
                     .unwrap_or_else(|| json!({}));
 
+                let mut merged_params = deep_merge(step.params.clone(), mapped_runtime.clone());
+
                 // allow jsonpaths inside runtime input too
                 let ctx_json = build_jsonpath_context(ctx);
-                resolve_jsonpaths(&mut mapped_runtime, &ctx_json);
-
-                let merged_params = deep_merge(step.params.clone(), mapped_runtime);
+                resolve_jsonpaths(&mut merged_params, &ctx_json);
 
                 let executor = ActionExecutor::new(
                     step.key.clone(),

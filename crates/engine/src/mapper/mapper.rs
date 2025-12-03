@@ -9,7 +9,7 @@ use crate::utils::jsonpath_resolver::{build_jsonpath_context, resolve_jsonpaths}
 pub trait Mapper: Send + Sync {
     async fn map_input(
         &self,
-        action_name: &str,
+        mut value: Value,
         exec_ctx: &ExecutionContext,
     ) -> Result<Value, Error>;
 }
@@ -23,7 +23,7 @@ pub struct DefaultMapper;
 impl Mapper for DefaultMapper {
     async fn map_input(
         &self,
-        _action_name: &str,
+        mut _value: Value,
         exec_ctx: &ExecutionContext,
     ) -> Result<Value, Error> {
         if let Some((_, last)) = exec_ctx.results.iter().last() {
@@ -45,20 +45,11 @@ pub struct JsonMapper;
 impl Mapper for JsonMapper {
     async fn map_input(
         &self,
-        _action_name: &str,
+        mut value: Value,
         exec_ctx: &ExecutionContext,
     ) -> Result<Value, Error> {
         let ctx_json = build_jsonpath_context(exec_ctx);
-
-        let step = exec_ctx
-            .current_step
-            .as_ref()
-            .ok_or_else(|| Error::Action("JsonMapper: missing current_step".into()))?;
-
-        let mut resolved_params = step.params.clone();
-
-        resolve_jsonpaths(&mut resolved_params, &ctx_json);
-
-        Ok(resolved_params)
+        resolve_jsonpaths(&mut value, &ctx_json);
+        Ok(value)
     }
 }

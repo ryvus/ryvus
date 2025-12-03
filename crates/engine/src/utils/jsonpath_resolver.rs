@@ -29,7 +29,6 @@ pub fn build_jsonpath_context(ctx: &ExecutionContext) -> Value {
 
     Value::Object(map)
 }
-
 /// Recursively resolve any JSONPath or secret:$. references
 pub fn resolve_jsonpaths(value: &mut Value, ctx_json: &Value) {
     match value {
@@ -38,19 +37,33 @@ pub fn resolve_jsonpaths(value: &mut Value, ctx_json: &Value) {
                 resolve_jsonpaths(v, ctx_json);
             }
         }
+
         Value::Array(arr) => {
             for v in arr.iter_mut() {
                 resolve_jsonpaths(v, ctx_json);
             }
         }
-        Value::String(s) if s.starts_with("$.") || s.starts_with("secret:$.") => {
-            let expr = if s.starts_with("secret:") {
-                s.replacen("secret:", "", 1)
+
+        Value::String(s) => {
+            // 1. Escape $$.
+            if let Some(stripped) = s.strip_prefix("$$.") {
+                *value = Value::String(format!("$.{}", stripped));
+                return;
+            }
+
+            // 2. Handle secret:$. prefix
+            let (expr, is_secret) = if let Some(stripped) = s.strip_prefix("secret:") {
+                (stripped.to_string(), true)
             } else {
-                s.clone()
+                (s.clone(), false)
             };
 
-            // perform JSONPath query
+            // 3. Only resolve if it's actually a JSONPath
+            if !expr.starts_with("$.") {
+                return;
+            }
+
+            // Run JSONPath query
             match ctx_json.query_with_path(expr.as_str()) {
                 Ok(results) if !results.is_empty() => {
                     let first = results.first().unwrap().clone();
@@ -65,6 +78,7 @@ pub fn resolve_jsonpaths(value: &mut Value, ctx_json: &Value) {
                 }
             }
         }
+
         _ => {}
     }
 }
